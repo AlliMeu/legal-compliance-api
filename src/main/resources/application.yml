@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: legal-compliance-api
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/legal_compliance}
+
+compliance:
+  audit:
+    enabled: true
+
+server:
+  port: 8080
