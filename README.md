@@ -12,9 +12,9 @@ once: exception-handling coverage, edge-case testing on a small pure function,
 Mockito verification of a service with conditional branches and a database
 upsert, testing a date-range calculation with missing data, and Spring
 Security authorization testing. Rather than another CRUD-with-happy-path-only
-demo, I picked a domain - legal case compliance - that's close to where I'm
-job-hunting (LegalTech) and lets the design choices below be things I
-genuinely thought about, not boilerplate.
+demo, I picked a domain - legal case compliance - that genuinely interests
+me and lets the design choices below be things I thought about, not
+boilerplate.
 
 ## What it demonstrates
 
