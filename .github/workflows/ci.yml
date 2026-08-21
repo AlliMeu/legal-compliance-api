@@ -33,9 +33,8 @@ jobs:
       - name: Wait for the app to answer over HTTP
         run: |
           for i in $(seq 1 30); do
-            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/cases/ping || echo "000")
-            if [ "$status" != "000" ]; then
-              echo "App responded with $status after $i tries - ready."
+            if curl -s -o /dev/null http://localhost:8080/cases/ping; then
+              echo "App responded after $i tries - ready."
               break
             fi
             if [ "$i" -eq 30 ]; then
