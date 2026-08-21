@@ -21,3 +21,43 @@ jobs:
 
       - name: Run tests
         run: mvn -B test
+
+  docker-e2e-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the real stack (app + Mongo, no mocks)
+        run: docker compose up -d --build
+
+      - name: Wait for the app to answer over HTTP
+        run: |
+          for i in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/cases/ping || echo "000")
+            if [ "$status" != "000" ]; then
+              echo "App responded with $status after $i tries - ready."
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "App never responded after 60s."
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Hit a real endpoint through real security and real Mongo
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" -u paralegal:demo http://localhost:8080/cases/DOES-NOT-EXIST)
+          echo "Authenticated request against the live container returned: $status"
+          if [ "$status" != "404" ]; then
+            echo "Expected 404 (CaseNotFoundException from a real Mongo query) - got $status instead."
+            exit 1
+          fi
+
+      - name: Show logs if anything failed
+        if: failure()
+        run: docker compose logs
+
+      - name: Tear down the stack
+        if: always()
+        run: docker compose down
