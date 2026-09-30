@@ -50,6 +50,13 @@ Starts the API on `:8080` with a real MongoDB. Two demo users are seeded in
 curl -u attorney:demo http://localhost:8080/cases/REF-001
 ```
 
+The database starts empty (no case is seeded), so the expected answer is a
+clean JSON 404 from the centralized error handler, not a stack trace:
+
+```json
+{"errorId":"NOT_FOUND","message":"No case found for reference REF-001","location":null}
+```
+
 ## Running the tests
 
 ```bash
