@@ -16,10 +16,8 @@
     <version>0.1.0</version>
     <name>legal-compliance-api</name>
     <description>
-        Portfolio demo: a legal case / compliance management REST API, built to practice
-        the same QA testing patterns as a professional onboarding exercise set (exception
-        handling coverage, data masking, audit-trail services, date-range calculators,
-        and role-based authorization) - original domain, original code, no proprietary data.
+        Portfolio demo: a legal case / compliance REST API built to practice API and unit
+        testing (error handling, data masking, audit trail, date-range rules, authorization).
     </description>
 
     <properties>

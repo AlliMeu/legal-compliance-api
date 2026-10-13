@@ -1,5 +1,8 @@
 package com.allisonmeunier.legalcompliance.audit;
 
+import com.allisonmeunier.legalcompliance.config.MongoIndexInitializer;
+import com.allisonmeunier.legalcompliance.dto.AccessChannel;
+import com.allisonmeunier.legalcompliance.exception.CaseNotFoundException;
 import com.allisonmeunier.legalcompliance.repository.CaseRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
@@ -11,25 +14,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-/**
- * upsertAccess(...)
- *      |
- *      +--> auditing disabled? ---- yes --> stop
- *      |
- *      +--> case found? ------ no --> stop
- *      |
- *      +--> build Mongo query/update
- *      |
- *      +--> upsert
- *              |
- *              +--> DuplicateKeyException?
- *                       |
- *                       +--> recover() -> update existing record
- */
 @Service
 public class CaseAccessAuditServiceImpl implements CaseAccessAuditService {
 
-    static final String COLLECTION = "case_access_audit";
+    static final String COLLECTION = MongoIndexInitializer.AUDIT_COLLECTION;
 
     private final CaseRepository caseRepository;
     private final MongoTemplate mongoTemplate;
@@ -44,35 +32,30 @@ public class CaseAccessAuditServiceImpl implements CaseAccessAuditService {
     }
 
     @Override
-    public void recordAccess(String caseReference, String userId, String category) {
+    public void recordAccess(String caseReference, String userId, String category, AccessChannel channel) {
         if (!auditEnabled) {
             return;
         }
         if (caseRepository.findByReference(caseReference).isEmpty()) {
-            return;
+            throw new CaseNotFoundException(caseReference);
         }
 
         Query query = Query.query(Criteria.where("caseReference").is(caseReference));
-        Update update = buildUpdate(caseReference, userId, category);
+        Update update = buildUpdate(caseReference, userId, category, channel);
 
         try {
             mongoTemplate.upsert(query, update, COLLECTION);
         } catch (DuplicateKeyException ex) {
-            recover(query, update);
+            mongoTemplate.updateFirst(query, update, COLLECTION);
         }
     }
 
-    void recover(Query query, Update update) {
-        mongoTemplate.updateFirst(query, update, COLLECTION);
-    }
-
-    private Update buildUpdate(String caseReference, String userId, String category) {
-        // "document.view" -> "history.document_view" - keeps the category readable
-        // in the API while staying a valid, dot-free Mongo field path.
+    private Update buildUpdate(String caseReference, String userId, String category, AccessChannel channel) {
         String mongoField = "history." + category.replace('.', '_');
         return new Update()
                 .set("caseReference", caseReference)
                 .set(mongoField + ".lastAccessedBy", userId)
-                .set(mongoField + ".lastAccessedAt", Instant.now());
+                .set(mongoField + ".lastAccessedAt", Instant.now())
+                .set(mongoField + ".lastChannel", channel.name());
     }
 }

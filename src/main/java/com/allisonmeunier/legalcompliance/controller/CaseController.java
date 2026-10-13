@@ -40,7 +40,7 @@ public class CaseController {
     public ResponseEntity<Void> recordAccess(@PathVariable String reference,
                                               @Valid @RequestBody AccessRequest request,
                                               Principal principal) {
-        auditService.recordAccess(reference, principal.getName(), request.category());
+        auditService.recordAccess(reference, principal.getName(), request.category(), request.channel());
         return ResponseEntity.accepted().build();
     }
 }

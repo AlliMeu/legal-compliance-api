@@ -44,14 +44,22 @@ jobs:
             sleep 2
           done
 
-      - name: Hit a real endpoint through real security and real Mongo
+      - name: Check real responses through real security and real Mongo
         run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" -u paralegal:demo http://localhost:8080/cases/DOES-NOT-EXIST)
-          echo "Authenticated request against the live container returned: $status"
-          if [ "$status" != "404" ]; then
-            echo "Expected 404 (CaseNotFoundException from a real Mongo query) - got $status instead."
-            exit 1
-          fi
+          check() {
+            expected=$1; shift
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$@")
+            echo "$expected expected, got $status: $*"
+            [ "$status" = "$expected" ]
+          }
+          url=http://localhost:8080
+          check 404 -u paralegal:demo $url/cases/DOES-NOT-EXIST
+          check 404 -u attorney:demo -H 'Content-Type: application/json' \
+            -d '{"category":"document.view","channel":"PORTAL"}' $url/cases/DOES-NOT-EXIST/access
+          check 403 -u paralegal:demo -H 'Content-Type: application/json' \
+            -d '{"category":"document.view","channel":"PORTAL"}' $url/cases/DOES-NOT-EXIST/access
+          check 401 -u attorney:wrong $url/cases/DOES-NOT-EXIST
+          check 405 -u attorney:demo -X PUT $url/cases/DOES-NOT-EXIST
 
       - name: Show logs if anything failed
         if: failure()

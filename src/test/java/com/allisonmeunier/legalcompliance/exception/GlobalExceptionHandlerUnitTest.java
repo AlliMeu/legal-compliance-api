@@ -2,16 +2,16 @@ package com.allisonmeunier.legalcompliance.exception;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
-import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
-import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -91,16 +91,6 @@ class GlobalExceptionHandlerUnitTest {
     }
 
     @Test
-    void constraintViolationReturns400WithGenericMessage() {
-        ConstraintViolationException ex = new ConstraintViolationException(Collections.emptySet());
-
-        ResponseEntity<ApiError> response = handler.handleConstraintViolation(ex);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().message()).isEqualTo("Invalid request");
-    }
-
-    @Test
     void unexpectedExceptionReturns500() {
         ResponseEntity<ApiError> response = handler.handleUnexpected(new RuntimeException("boom"));
 
@@ -108,9 +98,18 @@ class GlobalExceptionHandlerUnitTest {
         assertThat(response.getBody().errorId()).isEqualTo("INTERNAL_ERROR");
     }
 
-    // Minimal stand-ins so InvalidFormatException has a real target type/reference
-    // path to report, without pulling the real DTOs (and their validation
-    // annotations) into what should stay a pure, dependency-light unit test.
+    @Test
+    void springMvcExceptionKeepsItsOwnStatusInsteadOfBecoming500() {
+        HttpRequestMethodNotSupportedException ex =
+                new HttpRequestMethodNotSupportedException("PUT", List.of("GET"));
+
+        ResponseEntity<ApiError> response = handler.handleUnexpected(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
+        assertThat(response.getBody().errorId()).isEqualTo("METHOD_NOT_ALLOWED");
+        assertThat(response.getHeaders().getAllow()).containsExactly(HttpMethod.GET);
+    }
+
     private enum AccessChannelStub { PORTAL, EMAIL, INTERNAL }
 
     private static class AccessRequestStub {

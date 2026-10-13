@@ -16,16 +16,13 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
- * Same API as CaseControllerSecurityIntegrationTest, exercised as a real black-box
- * HTTP client instead of through MockMvc - this is the BDD/API layer of the test
- * pyramid (Karate) sitting on top of the unit layer (JUnit/Mockito) below.
- *
- * The repository and audit service are mocked rather than backed by a real Mongo
- * instance, same reasoning as the MockMvc test: this suite is about proving the
- * HTTP contract (status codes, error shapes, auth rules), not about testing Mongo
- * itself.
+ * Real HTTP calls against a running Spring context, so the real security filter
+ * chain and error handling are exercised. The repository and audit service are
+ * mocked: this suite proves the HTTP contract, not MongoDB, which is covered by
+ * the docker-e2e-smoke job in CI.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "compliance.mongo.ensure-indexes=false")
 class CaseApiKarateTest {
 
     @LocalServerPort

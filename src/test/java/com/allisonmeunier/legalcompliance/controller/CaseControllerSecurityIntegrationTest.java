@@ -2,6 +2,8 @@ package com.allisonmeunier.legalcompliance.controller;
 
 import com.allisonmeunier.legalcompliance.audit.CaseAccessAuditService;
 import com.allisonmeunier.legalcompliance.config.SecurityConfig;
+import com.allisonmeunier.legalcompliance.dto.AccessChannel;
+import com.allisonmeunier.legalcompliance.exception.CaseNotFoundException;
 import com.allisonmeunier.legalcompliance.model.Case;
 import com.allisonmeunier.legalcompliance.repository.CaseRepository;
 import org.junit.jupiter.api.Test;
@@ -14,22 +16,24 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/**
- * GET  /cases/...          -> needs SCOPE_case:read
- * POST /cases/.../access    -> needs SCOPE_case:write
- *
- * Wrong scope  -> 403 Forbidden
- * No auth      -> 401 Unauthorized
- * Correct auth -> normal response
- */
 @WebMvcTest(CaseController.class)
 @Import(SecurityConfig.class)
 class CaseControllerSecurityIntegrationTest {
+
+    private static final String VALID_ACCESS = "{\"category\":\"document.view\",\"channel\":\"PORTAL\"}";
 
     @Autowired
     private MockMvc mockMvc;
@@ -52,32 +56,103 @@ class CaseControllerSecurityIntegrationTest {
 
     @Test
     @WithMockUser(authorities = "SCOPE_case:write")
-    void getCase_withOnlyWriteScope_isForbidden() throws Exception {
+    void getCase_withOnlyWriteScope_isForbiddenWithApiErrorBody() throws Exception {
         mockMvc.perform(get("/cases/REF-001"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorId").value("FORBIDDEN"));
     }
 
     @Test
-    void getCase_withNoAuthentication_isUnauthorized() throws Exception {
+    void getCase_withNoAuthentication_isUnauthorizedWithApiErrorBody() throws Exception {
         mockMvc.perform(get("/cases/REF-001"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().exists("WWW-Authenticate"))
+                .andExpect(jsonPath("$.errorId").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void getCase_withWrongPassword_isUnauthorized() throws Exception {
+        mockMvc.perform(get("/cases/REF-001").with(httpBasic("attorney", "wrong-password")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorId").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void postAccess_asAttorney_succeedsAndPassesTheChannel() throws Exception {
+        mockMvc.perform(post("/cases/REF-001/access").with(httpBasic("attorney", "demo"))
+                        .contentType("application/json")
+                        .content(VALID_ACCESS))
+                .andExpect(status().isAccepted());
+
+        verify(auditService).recordAccess("REF-001", "attorney", "document.view", AccessChannel.PORTAL);
+    }
+
+    @Test
+    void postAccess_asParalegal_isForbidden() throws Exception {
+        mockMvc.perform(post("/cases/REF-001/access").with(httpBasic("paralegal", "demo"))
+                        .contentType("application/json")
+                        .content(VALID_ACCESS))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorId").value("FORBIDDEN"));
+    }
+
+    @Test
+    void postAccess_withNoAuthentication_isUnauthorized() throws Exception {
+        mockMvc.perform(post("/cases/REF-001/access")
+                        .contentType("application/json")
+                        .content(VALID_ACCESS))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     @WithMockUser(authorities = "SCOPE_case:write")
-    void postAccess_withWriteScope_succeeds() throws Exception {
-        mockMvc.perform(post("/cases/REF-001/access")
+    void postAccess_onUnknownCase_isNotFound() throws Exception {
+        doThrow(new CaseNotFoundException("REF-404"))
+                .when(auditService).recordAccess(anyString(), anyString(), anyString(), any());
+
+        mockMvc.perform(post("/cases/REF-404/access")
                         .contentType("application/json")
-                        .content("{\"category\":\"document.view\",\"channel\":\"PORTAL\"}"))
-                .andExpect(status().isAccepted());
+                        .content(VALID_ACCESS))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorId").value("NOT_FOUND"));
+    }
+
+    @Test
+    @WithMockUser(authorities = "SCOPE_case:write")
+    void postAccess_withCategoryThatWouldCollideOrBreakMongo_isRejected() throws Exception {
+        for (String category : new String[]{"document_view", "$where", "Document.View", "document..view"}) {
+            mockMvc.perform(post("/cases/REF-001/access")
+                            .contentType("application/json")
+                            .content("{\"category\":\"" + category + "\",\"channel\":\"PORTAL\"}"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errorId").value("VALIDATION_ERROR"));
+        }
+    }
+
+    @Test
+    @WithMockUser(authorities = "SCOPE_case:write")
+    void postAccess_withNonJsonBody_isUnsupportedMediaType() throws Exception {
+        mockMvc.perform(post("/cases/REF-001/access")
+                        .contentType("text/plain")
+                        .content("x"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.errorId").value("UNSUPPORTED_MEDIA_TYPE"));
+    }
+
+    @Test
+    @WithMockUser(authorities = {"SCOPE_case:read", "SCOPE_case:write"})
+    void unsupportedMethod_isMethodNotAllowed() throws Exception {
+        mockMvc.perform(put("/cases/REF-001"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().exists("Allow"))
+                .andExpect(jsonPath("$.errorId").value("METHOD_NOT_ALLOWED"));
     }
 
     @Test
     @WithMockUser(authorities = "SCOPE_case:read")
-    void postAccess_withOnlyReadScope_isForbidden() throws Exception {
-        mockMvc.perform(post("/cases/REF-001/access")
-                        .contentType("application/json")
-                        .content("{\"category\":\"document.view\",\"channel\":\"PORTAL\"}"))
-                .andExpect(status().isForbidden());
+    void unknownPath_isNotFound() throws Exception {
+        mockMvc.perform(get("/cases"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorId").value("NOT_FOUND"));
     }
 }

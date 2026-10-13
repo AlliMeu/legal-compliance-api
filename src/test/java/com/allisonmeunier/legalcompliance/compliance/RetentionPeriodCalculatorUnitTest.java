@@ -1,5 +1,6 @@
 package com.allisonmeunier.legalcompliance.compliance;
 
+import com.allisonmeunier.legalcompliance.exception.BadRequestException;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -7,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RetentionPeriodCalculatorUnitTest {
 
@@ -70,6 +72,44 @@ class RetentionPeriodCalculatorUnitTest {
         List<RetentionRule> rules = List.of(
                 new RetentionRule("only-rule", LocalDate.of(2025, 1, 1), LocalDate.of(2030, 1, 1))
         );
+
+        assertThat(calculator.calculate(rules))
+                .contains(new RetentionPeriod(LocalDate.of(2025, 1, 1), LocalDate.of(2030, 1, 1)));
+    }
+
+    @Test
+    void earliestStartAfterLatestEnd_isRejectedAsConflictingRules() {
+        List<RetentionRule> rules = List.of(
+                new RetentionRule("conduct", LocalDate.of(2030, 1, 1), null),
+                new RetentionRule("tax", null, LocalDate.of(2025, 1, 1))
+        );
+
+        assertThatThrownBy(() -> calculator.calculate(rules))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("2030-01-01")
+                .hasMessageContaining("2025-01-01");
+    }
+
+    @Test
+    void sameStartAndEnd_isAValidOneDayWindow() {
+        List<RetentionRule> rules = List.of(
+                new RetentionRule("only-rule", LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 1))
+        );
+
+        assertThat(calculator.calculate(rules))
+                .contains(new RetentionPeriod(LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 1)));
+    }
+
+    @Test
+    void nullRuleList_returnsEmpty() {
+        assertThat(calculator.calculate(null)).isEmpty();
+    }
+
+    @Test
+    void nullRuleInTheList_isIgnored() {
+        List<RetentionRule> rules = new java.util.ArrayList<>();
+        rules.add(null);
+        rules.add(new RetentionRule("only-rule", LocalDate.of(2025, 1, 1), LocalDate.of(2030, 1, 1)));
 
         assertThat(calculator.calculate(rules))
                 .contains(new RetentionPeriod(LocalDate.of(2025, 1, 1), LocalDate.of(2030, 1, 1)));
