@@ -16,13 +16,10 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
- * Real HTTP calls against a running Spring context, so the real security filter
- * chain and error handling are exercised. The repository and audit service are
- * mocked: this suite proves the HTTP contract, not MongoDB, which is covered by
- * the docker-e2e-smoke job in CI.
+ * Real HTTP calls against a running Spring context. The repository and audit
+ * service are mocked: MongoDB itself is checked by the docker-e2e-smoke CI job.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = "compliance.mongo.ensure-indexes=false")
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class CaseApiKarateTest {
 
     @LocalServerPort

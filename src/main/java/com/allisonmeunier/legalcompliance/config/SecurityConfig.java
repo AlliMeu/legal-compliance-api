@@ -1,9 +1,9 @@
 package com.allisonmeunier.legalcompliance.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -19,19 +19,16 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
-        JsonSecurityErrorHandler errorHandler = new JsonSecurityErrorHandler(objectMapper);
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.GET, "/cases/**").hasAuthority("SCOPE_case:read")
                         .requestMatchers(HttpMethod.POST, "/cases/*/access").hasAuthority("SCOPE_case:write")
                         .requestMatchers(HttpMethod.POST, "/compliance/retention-period").hasAuthority("SCOPE_case:read")
                         .anyRequest().authenticated())
-                .httpBasic(basic -> basic.authenticationEntryPoint(errorHandler))
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(errorHandler)
-                        .accessDeniedHandler(errorHandler));
+                .httpBasic(Customizer.withDefaults());
         return http.build();
     }
 

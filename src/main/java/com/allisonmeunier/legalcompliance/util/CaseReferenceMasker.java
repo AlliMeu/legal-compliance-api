@@ -2,7 +2,7 @@ package com.allisonmeunier.legalcompliance.util;
 
 public final class CaseReferenceMasker {
 
-    private static final int MAX_VISIBLE_PREFIX_LENGTH = 3;
+    private static final int VISIBLE_PREFIX_LENGTH = 3;
 
     private CaseReferenceMasker() {
     }
@@ -11,9 +11,11 @@ public final class CaseReferenceMasker {
         if (reference == null) {
             return null;
         }
-        int visibleLength = Math.min(MAX_VISIBLE_PREFIX_LENGTH, reference.length() / 2);
-        String visible = reference.substring(0, visibleLength);
-        String hidden = "*".repeat(reference.length() - visibleLength);
+        if (reference.length() <= VISIBLE_PREFIX_LENGTH) {
+            return "*".repeat(reference.length());
+        }
+        String visible = reference.substring(0, VISIBLE_PREFIX_LENGTH);
+        String hidden = "*".repeat(reference.length() - VISIBLE_PREFIX_LENGTH);
         return visible + hidden;
     }
 }

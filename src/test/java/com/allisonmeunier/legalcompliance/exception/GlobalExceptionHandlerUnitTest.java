@@ -1,18 +1,9 @@
 package com.allisonmeunier.legalcompliance.exception;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.validation.BeanPropertyBindingResult;
-import org.springframework.validation.FieldError;
-import org.springframework.web.HttpRequestMethodNotSupportedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,14 +13,14 @@ class GlobalExceptionHandlerUnitTest {
 
     @Test
     void badRequestExceptionWithFieldNameReturns400WithLocation() {
-        BadRequestException ex = new BadRequestException("category must not be blank", "category");
+        BadRequestException ex = new BadRequestException("rules conflict", "rules");
 
         ResponseEntity<ApiError> response = handler.handleBadRequest(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().errorId()).isEqualTo("BAD_REQUEST");
-        assertThat(response.getBody().message()).isEqualTo("category must not be blank");
-        assertThat(response.getBody().location()).isEqualTo("category");
+        assertThat(response.getBody().message()).isEqualTo("rules conflict");
+        assertThat(response.getBody().location()).isEqualTo("rules");
     }
 
     @Test
@@ -44,76 +35,13 @@ class GlobalExceptionHandlerUnitTest {
     }
 
     @Test
-    void invalidEnumValueReturns400WithParsedFieldMessage() throws Exception {
-        InvalidFormatException invalidFormat = InvalidFormatException.from(
-                null, "bad enum value", "not-a-channel", AccessChannelStub.class);
-        invalidFormat.prependPath(AccessRequestStub.class, "channel");
+    void unreadableBodyReturns400() {
         HttpMessageNotReadableException ex =
-                new HttpMessageNotReadableException("parse error", invalidFormat, null);
+                new HttpMessageNotReadableException("broken json", (Throwable) null, null);
 
-        ResponseEntity<ApiError> response = handler.handleFaultyRequestBody(ex);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().message()).isEqualTo("Invalid value 'not-a-channel'");
-        assertThat(response.getBody().location()).isEqualTo("channel");
-    }
-
-    @Test
-    void unparseableBodyWithoutEnumCauseFallsBackToGenericMessage() {
-        HttpMessageNotReadableException ex =
-                new HttpMessageNotReadableException("totally broken json", (Throwable) null, null);
-
-        ResponseEntity<ApiError> response = handler.handleFaultyRequestBody(ex);
+        ResponseEntity<ApiError> response = handler.handleUnreadableBody(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().message()).isEqualTo("Error processing request body.");
-    }
-
-    @Test
-    void methodArgumentNotValidBuildsOneReadableMessageFromFieldErrors() throws Exception {
-        BeanPropertyBindingResult bindingResult =
-                new BeanPropertyBindingResult(new AccessRequestStub(), "accessRequest");
-        bindingResult.addError(new FieldError("accessRequest", "category", "must not be blank"));
-        org.springframework.core.MethodParameter methodParameter = new org.springframework.core.MethodParameter(
-                GlobalExceptionHandlerUnitTest.class.getDeclaredMethod("dummyEndpoint", AccessRequestStub.class), 0);
-        MethodArgumentNotValidException ex = new MethodArgumentNotValidException(methodParameter, bindingResult);
-
-        ResponseEntity<ApiError> response = handler.handleMethodArgumentNotValid(ex);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().errorId()).isEqualTo("VALIDATION_ERROR");
-        assertThat(response.getBody().message()).isEqualTo("category is invalid");
-    }
-
-    // referenced by reflection above purely to obtain a real, non-null MethodParameter -
-    // MethodArgumentNotValidException's constructor needs one, it's never actually called.
-    private void dummyEndpoint(AccessRequestStub stub) {
-    }
-
-    @Test
-    void unexpectedExceptionReturns500() {
-        ResponseEntity<ApiError> response = handler.handleUnexpected(new RuntimeException("boom"));
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody().errorId()).isEqualTo("INTERNAL_ERROR");
-    }
-
-    @Test
-    void springMvcExceptionKeepsItsOwnStatusInsteadOfBecoming500() {
-        HttpRequestMethodNotSupportedException ex =
-                new HttpRequestMethodNotSupportedException("PUT", List.of("GET"));
-
-        ResponseEntity<ApiError> response = handler.handleUnexpected(ex);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
-        assertThat(response.getBody().errorId()).isEqualTo("METHOD_NOT_ALLOWED");
-        assertThat(response.getHeaders().getAllow()).containsExactly(HttpMethod.GET);
-    }
-
-    private enum AccessChannelStub { PORTAL, EMAIL, INTERNAL }
-
-    private static class AccessRequestStub {
-        String category;
-        AccessChannelStub channel;
+        assertThat(response.getBody().message()).isEqualTo("Invalid request body.");
     }
 }

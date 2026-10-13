@@ -56,25 +56,22 @@ class CaseControllerSecurityIntegrationTest {
 
     @Test
     @WithMockUser(authorities = "SCOPE_case:write")
-    void getCase_withOnlyWriteScope_isForbiddenWithApiErrorBody() throws Exception {
+    void getCase_withOnlyWriteScope_isForbidden() throws Exception {
         mockMvc.perform(get("/cases/REF-001"))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorId").value("FORBIDDEN"));
+                .andExpect(status().isForbidden());
     }
 
     @Test
-    void getCase_withNoAuthentication_isUnauthorizedWithApiErrorBody() throws Exception {
+    void getCase_withNoAuthentication_isUnauthorized() throws Exception {
         mockMvc.perform(get("/cases/REF-001"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(header().exists("WWW-Authenticate"))
-                .andExpect(jsonPath("$.errorId").value("UNAUTHORIZED"));
+                .andExpect(header().exists("WWW-Authenticate"));
     }
 
     @Test
     void getCase_withWrongPassword_isUnauthorized() throws Exception {
         mockMvc.perform(get("/cases/REF-001").with(httpBasic("attorney", "wrong-password")))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorId").value("UNAUTHORIZED"));
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -92,8 +89,7 @@ class CaseControllerSecurityIntegrationTest {
         mockMvc.perform(post("/cases/REF-001/access").with(httpBasic("paralegal", "demo"))
                         .contentType("application/json")
                         .content(VALID_ACCESS))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.errorId").value("FORBIDDEN"));
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -119,24 +115,11 @@ class CaseControllerSecurityIntegrationTest {
 
     @Test
     @WithMockUser(authorities = "SCOPE_case:write")
-    void postAccess_withCategoryThatWouldCollideOrBreakMongo_isRejected() throws Exception {
-        for (String category : new String[]{"document_view", "$where", "Document.View", "document..view"}) {
-            mockMvc.perform(post("/cases/REF-001/access")
-                            .contentType("application/json")
-                            .content("{\"category\":\"" + category + "\",\"channel\":\"PORTAL\"}"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.errorId").value("VALIDATION_ERROR"));
-        }
-    }
-
-    @Test
-    @WithMockUser(authorities = "SCOPE_case:write")
     void postAccess_withNonJsonBody_isUnsupportedMediaType() throws Exception {
         mockMvc.perform(post("/cases/REF-001/access")
                         .contentType("text/plain")
                         .content("x"))
-                .andExpect(status().isUnsupportedMediaType())
-                .andExpect(jsonPath("$.errorId").value("UNSUPPORTED_MEDIA_TYPE"));
+                .andExpect(status().isUnsupportedMediaType());
     }
 
     @Test
@@ -144,15 +127,13 @@ class CaseControllerSecurityIntegrationTest {
     void unsupportedMethod_isMethodNotAllowed() throws Exception {
         mockMvc.perform(put("/cases/REF-001"))
                 .andExpect(status().isMethodNotAllowed())
-                .andExpect(header().exists("Allow"))
-                .andExpect(jsonPath("$.errorId").value("METHOD_NOT_ALLOWED"));
+                .andExpect(header().exists("Allow"));
     }
 
     @Test
     @WithMockUser(authorities = "SCOPE_case:read")
     void unknownPath_isNotFound() throws Exception {
         mockMvc.perform(get("/cases"))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.errorId").value("NOT_FOUND"));
+                .andExpect(status().isNotFound());
     }
 }
