@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/AlliMeu/legal-compliance-api/actions/workflows/ci.yml/badge.svg)
 
-A small Spring Boot REST API for managing legal case files under regulatory
+A small Spring Boot REST API for consulting legal case files under regulatory
 compliance rules - built as a deliberate testing exercise, not a real product.
 
 ## Why this exists
@@ -52,6 +52,12 @@ clean JSON 404 from the error handler, not a stack trace:
 
 ```json
 {"errorId":"NOT_FOUND","message":"No case found for reference REF-001","location":null}
+```
+
+To get a case back instead, add one to the database first:
+
+```bash
+docker compose exec mongo mongosh legal_compliance --eval 'db.cases.insertOne({reference: "REF-001", matterName: "Matter A", status: "OPEN"})'
 ```
 
 ## Running the tests

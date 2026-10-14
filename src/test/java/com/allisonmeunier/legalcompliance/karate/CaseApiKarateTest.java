@@ -5,7 +5,6 @@ import com.allisonmeunier.legalcompliance.model.Case;
 import com.allisonmeunier.legalcompliance.repository.CaseRepository;
 import com.intuit.karate.junit5.Karate;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -13,7 +12,6 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import java.util.Optional;
 
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.when;
 
 /**
  * Real HTTP calls against a running Spring context. The repository and audit

@@ -115,6 +115,16 @@ class CaseControllerSecurityIntegrationTest {
 
     @Test
     @WithMockUser(authorities = "SCOPE_case:write")
+    void postAccess_withBlankCategoryAndNoChannel_isAValidationError() throws Exception {
+        mockMvc.perform(post("/cases/REF-001/access")
+                        .contentType("application/json")
+                        .content("{\"category\":\" \"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorId").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    @WithMockUser(authorities = "SCOPE_case:write")
     void postAccess_withNonJsonBody_isUnsupportedMediaType() throws Exception {
         mockMvc.perform(post("/cases/REF-001/access")
                         .contentType("text/plain")
