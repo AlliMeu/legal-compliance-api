@@ -1,11 +1,11 @@
 Feature: Case retrieval and access logging over real HTTP
 
-  # Base64 of "attorney:demo" and "paralegal:demo" - fixed demo credentials for
-  # the in-memory users defined in SecurityConfig, not real secrets.
+  # Demo users defined in SecurityConfig, not real accounts.
   Background:
     * url baseUrl
-    * def attorney = { Authorization: 'Basic YXR0b3JuZXk6ZGVtbw==' }
-    * def paralegal = { Authorization: 'Basic cGFyYWxlZ2FsOmRlbW8=' }
+    * def basicAuth = read('basic-auth.js')
+    * def attorney = { Authorization: '#(basicAuth({ username: "attorney", password: "demo" }))' }
+    * def paralegal = { Authorization: '#(basicAuth({ username: "paralegal", password: "demo" }))' }
 
   Scenario: fetching an existing case returns its details
     Given path 'cases/REF-001'
@@ -22,7 +22,7 @@ Feature: Case retrieval and access logging over real HTTP
 
   Scenario: fetching a case with a wrong password is rejected
     Given path 'cases/REF-001'
-    And header Authorization = 'Basic YXR0b3JuZXk6d3Jvbmc='
+    And header Authorization = basicAuth({ username: 'attorney', password: 'wrong' })
     When method get
     Then status 401
 
