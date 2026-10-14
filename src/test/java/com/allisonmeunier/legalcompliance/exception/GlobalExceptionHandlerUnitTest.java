@@ -12,18 +12,6 @@ class GlobalExceptionHandlerUnitTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
-    void badRequestExceptionWithFieldNameReturns400WithLocation() {
-        BadRequestException ex = new BadRequestException("rules conflict", "rules");
-
-        ResponseEntity<ApiError> response = handler.handleBadRequest(ex);
-
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody().errorId()).isEqualTo("BAD_REQUEST");
-        assertThat(response.getBody().message()).isEqualTo("rules conflict");
-        assertThat(response.getBody().location()).isEqualTo("rules");
-    }
-
-    @Test
     void caseNotFoundExceptionReturns404() {
         CaseNotFoundException ex = new CaseNotFoundException("REF-001");
 

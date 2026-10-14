@@ -36,7 +36,7 @@ class CaseAccessAuditServiceUnitTest {
     void unknownCase_throwsAndNothingIsSaved() {
         when(caseRepository.findByReference("REF-404")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.recordAccess("REF-404", "attorney", "document.view", AccessChannel.PORTAL))
+        assertThatThrownBy(() -> service.recordAccess("REF-404", "lawyer", "document.view", AccessChannel.PORTAL))
                 .isInstanceOf(CaseNotFoundException.class);
 
         verifyNoInteractions(accessLogRepository);
@@ -45,15 +45,15 @@ class CaseAccessAuditServiceUnitTest {
     @Test
     void knownCase_savesOneLogWithEveryField() {
         when(caseRepository.findByReference("REF-001"))
-                .thenReturn(Optional.of(new Case("REF-001", "Matter A", "OPEN")));
+                .thenReturn(Optional.of(new Case("REF-001", "Lease dispute", "OPEN")));
 
-        service.recordAccess("REF-001", "attorney", "document.view", AccessChannel.EMAIL);
+        service.recordAccess("REF-001", "lawyer", "document.view", AccessChannel.EMAIL);
 
         ArgumentCaptor<AccessLog> captor = ArgumentCaptor.forClass(AccessLog.class);
         verify(accessLogRepository).save(captor.capture());
         AccessLog saved = captor.getValue();
         assertThat(saved.getCaseReference()).isEqualTo("REF-001");
-        assertThat(saved.getUserId()).isEqualTo("attorney");
+        assertThat(saved.getUserId()).isEqualTo("lawyer");
         assertThat(saved.getCategory()).isEqualTo("document.view");
         assertThat(saved.getChannel()).isEqualTo(AccessChannel.EMAIL);
         assertThat(saved.getAccessedAt()).isNotNull();

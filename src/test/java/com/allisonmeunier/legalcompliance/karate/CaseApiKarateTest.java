@@ -33,7 +33,7 @@ class CaseApiKarateTest {
     void setUp() {
         System.setProperty("karate.server.port", String.valueOf(port));
         lenient().when(caseRepository.findByReference("REF-001"))
-                .thenReturn(Optional.of(new Case("REF-001", "Matter A", "OPEN")));
+                .thenReturn(Optional.of(new Case("REF-001", "Lease dispute", "OPEN")));
     }
 
     @Karate.Test

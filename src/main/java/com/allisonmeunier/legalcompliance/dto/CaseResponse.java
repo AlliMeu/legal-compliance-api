@@ -2,9 +2,9 @@ package com.allisonmeunier.legalcompliance.dto;
 
 import com.allisonmeunier.legalcompliance.model.Case;
 
-public record CaseResponse(String reference, String matterName, String status) {
+public record CaseResponse(String reference, String subject, String status) {
 
     public static CaseResponse from(Case c) {
-        return new CaseResponse(c.getReference(), c.getMatterName(), c.getStatus());
+        return new CaseResponse(c.getReference(), c.getSubject(), c.getStatus());
     }
 }

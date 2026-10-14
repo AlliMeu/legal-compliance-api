@@ -43,10 +43,10 @@ public class SecurityConfig {
                 .password(encoder.encode("demo"))
                 .authorities("SCOPE_case:read")
                 .build();
-        UserDetails attorney = User.withUsername("attorney")
+        UserDetails lawyer = User.withUsername("lawyer")
                 .password(encoder.encode("demo"))
                 .authorities("SCOPE_case:read", "SCOPE_case:write")
                 .build();
-        return new InMemoryUserDetailsManager(paralegal, attorney);
+        return new InMemoryUserDetailsManager(paralegal, lawyer);
     }
 }

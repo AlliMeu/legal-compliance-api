@@ -1,8 +1,8 @@
 package com.allisonmeunier.legalcompliance.controller;
 
-import com.allisonmeunier.legalcompliance.compliance.RetentionPeriod;
 import com.allisonmeunier.legalcompliance.compliance.RetentionPeriodCalculator;
 import com.allisonmeunier.legalcompliance.dto.RetentionRequest;
+import com.allisonmeunier.legalcompliance.dto.RetentionResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,9 +21,9 @@ public class ComplianceController {
     }
 
     @PostMapping("/retention-period")
-    public ResponseEntity<RetentionPeriod> retentionPeriod(@Valid @RequestBody RetentionRequest request) {
-        return calculator.calculate(request.rules())
-                .map(ResponseEntity::ok)
+    public ResponseEntity<RetentionResponse> retentionPeriod(@Valid @RequestBody RetentionRequest request) {
+        return calculator.retainUntil(request.missionEndDate(), request.rules())
+                .map(date -> ResponseEntity.ok(new RetentionResponse(date)))
                 .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

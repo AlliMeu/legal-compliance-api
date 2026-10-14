@@ -13,22 +13,16 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ApiError> handleBadRequest(BadRequestException ex) {
-        return ResponseEntity.badRequest()
-                .body(ApiError.of("BAD_REQUEST", ex.getMessage(), ex.getFieldName()));
-    }
-
     @ExceptionHandler(CaseNotFoundException.class)
     public ResponseEntity<ApiError> handleCaseNotFound(CaseNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiError.of("NOT_FOUND", ex.getMessage()));
+                .body(new ApiError("NOT_FOUND", ex.getMessage()));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiError> handleUnreadableBody(HttpMessageNotReadableException ex) {
         return ResponseEntity.badRequest()
-                .body(ApiError.of("BAD_REQUEST", "Invalid request body."));
+                .body(new ApiError("BAD_REQUEST", "Invalid request body."));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -37,6 +31,6 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getField)
                 .map(field -> field + " is invalid")
                 .collect(Collectors.joining(", "));
-        return ResponseEntity.badRequest().body(ApiError.of("VALIDATION_ERROR", message));
+        return ResponseEntity.badRequest().body(new ApiError("VALIDATION_ERROR", message));
     }
 }

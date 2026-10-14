@@ -9,15 +9,15 @@ public class Case {
     @Id
     private String id;
     private String reference;
-    private String matterName;
+    private String subject;
     private String status;
 
     public Case() {
     }
 
-    public Case(String reference, String matterName, String status) {
+    public Case(String reference, String subject, String status) {
         this.reference = reference;
-        this.matterName = matterName;
+        this.subject = subject;
         this.status = status;
     }
 
@@ -29,8 +29,8 @@ public class Case {
         return reference;
     }
 
-    public String getMatterName() {
-        return matterName;
+    public String getSubject() {
+        return subject;
     }
 
     public String getStatus() {

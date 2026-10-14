@@ -22,61 +22,48 @@ class ComplianceControllerIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
-    private ResultActions postRules(String body) throws Exception {
+    private ResultActions postRetention(String body) throws Exception {
         return mockMvc.perform(post("/compliance/retention-period")
                 .contentType("application/json")
                 .content(body));
     }
 
     @Test
-    void boundedRules_returnTheCombinedWindow() throws Exception {
-        postRules("""
-                {"rules": [
-                  {"ruleName": "tax", "notBefore": "2023-06-01", "retainUntil": null},
-                  {"ruleName": "conduct", "notBefore": null, "retainUntil": "2029-01-01"}
-                ]}""")
+    void endedMission_returnsTheDateOfTheLongestRule() throws Exception {
+        postRetention("""
+                {"missionEndDate": "2026-03-15", "rules": ["LAWYER_FILE", "ANTI_MONEY_LAUNDERING"]}""")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.notBefore").value("2023-06-01"))
-                .andExpect(jsonPath("$.retainUntil").value("2029-01-01"));
+                .andExpect(jsonPath("$.retainUntil").value("2036-03-15"));
     }
 
     @Test
-    void rulesWithoutAnyStart_returnNoContent() throws Exception {
-        postRules("""
-                {"rules": [{"ruleName": "tax", "notBefore": null, "retainUntil": "2029-01-01"}]}""")
+    void missionNotEnded_returnsNoContent() throws Exception {
+        postRetention("""
+                {"missionEndDate": null, "rules": ["LAWYER_FILE"]}""")
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    void contradictoryRules_areRejectedWithTheFieldName() throws Exception {
-        postRules("""
-                {"rules": [
-                  {"ruleName": "conduct", "notBefore": "2030-01-01", "retainUntil": null},
-                  {"ruleName": "tax", "notBefore": null, "retainUntil": "2025-01-01"}
-                ]}""")
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorId").value("BAD_REQUEST"))
-                .andExpect(jsonPath("$.location").value("rules"));
-    }
-
-    @Test
-    void missingRuleList_isAValidationError() throws Exception {
-        postRules("{}")
+    void noRule_isAValidationError() throws Exception {
+        postRetention("""
+                {"missionEndDate": "2026-03-15", "rules": []}""")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorId").value("VALIDATION_ERROR"));
     }
 
     @Test
-    void nullRuleInTheList_isAValidationError() throws Exception {
-        postRules("{\"rules\": [null]}")
+    void unknownRule_isRejected() throws Exception {
+        postRetention("""
+                {"missionEndDate": "2026-03-15", "rules": ["TAX"]}""")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorId").value("VALIDATION_ERROR"));
+                .andExpect(jsonPath("$.errorId").value("BAD_REQUEST"));
     }
 
     @Test
     @WithMockUser(authorities = "SCOPE_case:write")
     void withoutReadScope_isForbidden() throws Exception {
-        postRules("{\"rules\": []}")
+        postRetention("""
+                {"missionEndDate": "2026-03-15", "rules": ["LAWYER_FILE"]}""")
                 .andExpect(status().isForbidden());
     }
 }

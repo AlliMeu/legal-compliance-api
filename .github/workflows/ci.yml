@@ -54,12 +54,12 @@ jobs:
           }
           url=http://localhost:8080
           check 404 -u paralegal:demo $url/cases/DOES-NOT-EXIST
-          check 404 -u attorney:demo -H 'Content-Type: application/json' \
+          check 404 -u lawyer:demo -H 'Content-Type: application/json' \
             -d '{"category":"document.view","channel":"PORTAL"}' $url/cases/DOES-NOT-EXIST/access
           check 403 -u paralegal:demo -H 'Content-Type: application/json' \
             -d '{"category":"document.view","channel":"PORTAL"}' $url/cases/DOES-NOT-EXIST/access
-          check 401 -u attorney:wrong $url/cases/DOES-NOT-EXIST
-          check 405 -u attorney:demo -X PUT $url/cases/DOES-NOT-EXIST
+          check 401 -u lawyer:wrong $url/cases/DOES-NOT-EXIST
+          check 405 -u lawyer:demo -X PUT $url/cases/DOES-NOT-EXIST
 
       - name: Show logs if anything failed
         if: failure()

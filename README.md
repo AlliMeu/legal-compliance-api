@@ -9,17 +9,17 @@ compliance rules - built as a deliberate testing exercise, not a real product.
 
 I wanted a project to practice five testing skills at once: error handling,
 edge cases on a small pure function, Mockito verification of a service,
-a date-range calculation with missing data, and Spring Security authorization.
+a retention date calculation with missing data, and Spring Security authorization.
 I picked a domain I know from my previous career, legal case compliance.
 
 ## What it demonstrates
 
 | Area | Where | What's being tested |
 |---|---|---|
-| Error responses | `exception/GlobalExceptionHandler.java` | A business-rule rejection, an unknown case (404), an unreadable JSON body and Bean Validation failures each return a JSON error with a clear `errorId`. Errors Spring already handles (405, 415, unknown path) keep Spring's own status. |
+| Error responses | `exception/GlobalExceptionHandler.java` | An unknown case (404), an unreadable JSON body and Bean Validation failures each return a JSON error with a clear `errorId`. Errors Spring already handles (405, 415, unknown path) keep Spring's own status. |
 | Edge-case unit testing | `util/CaseReferenceMasker.java` | A case reference is masked before it reaches a log line: the first 3 characters stay visible, a reference of 3 characters or less is fully masked. Tested with long, short, empty and null input. |
 | Service with a repository | `audit/CaseAccessAuditService.java` | Every access to a case file is saved as one log entry (case, user, category, channel, time). Tests check that an unknown case is rejected with a 404 and nothing is saved, and that a valid access saves exactly the expected entry (checked with an `ArgumentCaptor`). |
-| Date range with missing data | `compliance/RetentionPeriodCalculator.java` | A case can be subject to several retention rules at once, each covering only part of the timeline; the real retention window is the earliest start any rule states through the latest end any rule states. Exposed as `POST /compliance/retention-period`. Contradictory rules (start after end) are rejected with a 400. Tested with all-bounds-present, missing-start-everywhere, missing-end-everywhere, mixed-missing-values, contradictory and null inputs. |
+| Retention date with missing data | `compliance/RetentionPeriodCalculator.java` | A case file can fall under several Belgian retention rules (lawyer's file: 5 years, anti-money laundering: 10 years); the file is kept until the end of the mission plus the longest applicable period. Exposed as `POST /compliance/retention-period`. If the mission has not ended yet, no date is returned rather than a guessed one. Tested with one rule, several rules, a mission not yet ended, no rule, and a mission ending on 29 February. |
 | Role-based authorization | `config/SecurityConfig.java` | `GET /cases/**` needs `SCOPE_case:read`, `POST /cases/{ref}/access` needs `SCOPE_case:write`. Tested for wrong scope (403), no authentication and wrong password (401), and correct scope (success) via `MockMvc`, with the real demo users, and again over real HTTP via Karate. |
 
 Two test layers on purpose: `MockMvc`-based tests for fast unit/slice-level
@@ -41,23 +41,23 @@ docker compose up --build
 
 Starts the API on `:8080` with a real MongoDB. Two demo users are seeded in
 `SecurityConfig` for manual testing (Basic auth): `paralegal` / `demo`
-(read-only) and `attorney` / `demo` (read + write).
+(read-only) and `lawyer` / `demo` (read + write).
 
 ```bash
-curl -u attorney:demo http://localhost:8080/cases/REF-001
+curl -u lawyer:demo http://localhost:8080/cases/REF-001
 ```
 
 The database starts empty (no case is seeded), so the expected answer is a
 clean JSON 404 from the error handler, not a stack trace:
 
 ```json
-{"errorId":"NOT_FOUND","message":"No case found for reference REF-001","location":null}
+{"errorId":"NOT_FOUND","message":"No case found for reference REF-001"}
 ```
 
 To get a case back instead, add one to the database first:
 
 ```bash
-docker compose exec mongo mongosh legal_compliance --eval 'db.cases.insertOne({reference: "REF-001", matterName: "Matter A", status: "OPEN"})'
+docker compose exec mongo mongosh legal_compliance --eval 'db.cases.insertOne({reference: "REF-001", subject: "Lease dispute", status: "OPEN"})'
 ```
 
 ## Running the tests
@@ -74,6 +74,8 @@ reason.
 
 ## Notes on the domain
 
-Cases, matters, and retention rules in this repo are all invented for the
-purpose of the exercise - no real client data, case names, or regulatory
-citations are used anywhere.
+The retention periods follow Belgian rules for a lawyer's case file: 5 years
+after the end of the mission, 10 years when anti-money-laundering obligations
+apply. For simplicity, the end of the mission and the end of the business
+relationship are treated as the same date. Cases and users are invented, and
+nothing here is legal advice.

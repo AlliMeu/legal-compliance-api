@@ -48,7 +48,7 @@ class CaseControllerSecurityIntegrationTest {
     @WithMockUser(authorities = "SCOPE_case:read")
     void getCase_withReadScope_succeeds() throws Exception {
         when(caseRepository.findByReference("REF-001"))
-                .thenReturn(Optional.of(new Case("REF-001", "Matter A", "OPEN")));
+                .thenReturn(Optional.of(new Case("REF-001", "Lease dispute", "OPEN")));
 
         mockMvc.perform(get("/cases/REF-001"))
                 .andExpect(status().isOk());
@@ -70,18 +70,18 @@ class CaseControllerSecurityIntegrationTest {
 
     @Test
     void getCase_withWrongPassword_isUnauthorized() throws Exception {
-        mockMvc.perform(get("/cases/REF-001").with(httpBasic("attorney", "wrong-password")))
+        mockMvc.perform(get("/cases/REF-001").with(httpBasic("lawyer", "wrong-password")))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void postAccess_asAttorney_succeedsAndPassesTheChannel() throws Exception {
-        mockMvc.perform(post("/cases/REF-001/access").with(httpBasic("attorney", "demo"))
+    void postAccess_asLawyer_succeedsAndPassesTheChannel() throws Exception {
+        mockMvc.perform(post("/cases/REF-001/access").with(httpBasic("lawyer", "demo"))
                         .contentType("application/json")
                         .content(VALID_ACCESS))
                 .andExpect(status().isAccepted());
 
-        verify(auditService).recordAccess("REF-001", "attorney", "document.view", AccessChannel.PORTAL);
+        verify(auditService).recordAccess("REF-001", "lawyer", "document.view", AccessChannel.PORTAL);
     }
 
     @Test
