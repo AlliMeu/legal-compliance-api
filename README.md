@@ -2,80 +2,71 @@
 
 ![CI](https://github.com/AlliMeu/legal-compliance-api/actions/workflows/ci.yml/badge.svg)
 
-A small Spring Boot REST API for consulting legal case files under regulatory
-compliance rules - built as a deliberate testing exercise, not a real product.
+Une petite API REST Spring Boot de consultation de dossiers d'avocat, soumise à des règles de conformité. C'est un exercice de test délibéré, pas un vrai produit.
 
-## Why this exists
+## Pourquoi ce projet
 
-I wanted a project to practice five testing skills at once: error handling,
-edge cases on a small pure function, Mockito verification of a service,
-a retention date calculation with missing data, and Spring Security authorization.
-I picked a domain I know from my previous career, legal case compliance.
+Je voulais pratiquer cinq compétences de test en même temps : la gestion des erreurs, les cas limites sur une petite fonction pure, la vérification d'un service avec Mockito, un calcul de date de conservation avec des données manquantes, et l'autorisation avec Spring Security. J'ai choisi un domaine que je connais grâce à mon premier métier : le droit.
 
-## What it demonstrates
+## Ce que le projet montre
 
-| Area | Where | What's being tested |
+| Domaine | Où | Ce qui est testé |
 |---|---|---|
-| Error responses | `exception/GlobalExceptionHandler.java` | An unknown case (404), an unreadable JSON body and Bean Validation failures each return a JSON error with a clear `errorId`. Errors Spring already handles (405, 415, unknown path) keep Spring's own status. |
-| Edge-case unit testing | `util/CaseReferenceMasker.java` | A case reference is masked before it reaches a log line: the first 3 characters stay visible, a reference of 3 characters or less is fully masked. Tested with long, short, empty and null input. |
-| Service with a repository | `audit/CaseAccessAuditService.java` | Every access to a case file is saved as one log entry (case, user, category, channel, time). Tests check that an unknown case is rejected with a 404 and nothing is saved, and that a valid access saves exactly the expected entry (checked with an `ArgumentCaptor`). |
-| Retention date with missing data | `compliance/RetentionPeriodCalculator.java` | A case file can fall under several Belgian retention rules (lawyer's file: 5 years, anti-money laundering: 10 years); the file is kept until the end of the mission plus the longest applicable period. Exposed as `POST /compliance/retention-period`. If the mission has not ended yet, no date is returned rather than a guessed one. Tested with one rule, several rules, a mission not yet ended, no rule, and a mission ending on 29 February. |
-| Role-based authorization | `config/SecurityConfig.java` | `GET /cases/**` needs `SCOPE_case:read`, `POST /cases/{ref}/access` needs `SCOPE_case:write`. Tested for wrong scope (403), no authentication and wrong password (401), and correct scope (success) via `MockMvc`, with the real demo users, and again over real HTTP via Karate. |
+| Réponses d'erreur | `exception/GlobalExceptionHandler.java` | Un dossier inconnu (404), un corps JSON illisible et les erreurs de validation Bean Validation renvoient chacun une erreur JSON avec un `errorId` clair. Les erreurs que Spring gère déjà (405, 415, chemin inconnu) gardent le statut de Spring. |
+| Cas limites en test unitaire | `util/CaseReferenceMasker.java` | La référence d'un dossier est masquée avant d'arriver dans une ligne de log : les 3 premiers caractères restent visibles, une référence de 3 caractères ou moins est entièrement masquée. Testé avec une entrée longue, courte, vide et nulle. |
+| Service avec un dépôt de données | `audit/CaseAccessAuditService.java` | Chaque accès à un dossier est enregistré dans une entrée de journal (dossier, utilisateur, catégorie, canal, date). Les tests vérifient qu'un dossier inconnu est rejeté avec un 404 sans rien enregistrer, et qu'un accès valide enregistre exactement l'entrée attendue (contrôlé avec un `ArgumentCaptor`). |
+| Date de conservation avec données manquantes | `compliance/RetentionPeriodCalculator.java` | Un dossier peut relever de plusieurs règles belges (dossier d'avocat : 5 ans, anti-blanchiment : 10 ans). La date retenue est la fin de la mission plus le délai applicable le plus long. Exposé par `POST /compliance/retention-period`. Si la mission n'est pas terminée, aucune date n'est renvoyée plutôt qu'une date devinée. Testé avec une règle, plusieurs règles, une mission non terminée, aucune règle et une mission qui se termine un 29 février. |
+| Autorisation par rôle | `config/SecurityConfig.java` | `GET /cases/**` exige `SCOPE_case:read`, `POST /cases/{ref}/access` exige `SCOPE_case:write`. Testé avec un mauvais droit (403), sans authentification et avec un mauvais mot de passe (401), et avec le bon droit (succès) via `MockMvc` avec les vrais utilisateurs de démonstration, puis sur du vrai HTTP via Karate. |
 
-Two test layers on purpose: `MockMvc`-based tests for fast unit/slice-level
-feedback, and a Karate suite (`src/test/resources/.../karate/cases.feature`)
-that drives the same endpoints as a black-box HTTP client against a running
-Spring context, with the database mocked. The `docker-e2e-smoke` CI job then
-checks key responses against the real stack (app + MongoDB, no mocks).
+Le projet compte 39 tests, répartis volontairement sur trois niveaux :
+
+- 15 tests unitaires (JUnit 5, Mockito, AssertJ) pour la logique isolée ;
+- 17 tests `MockMvc` pour un retour rapide sur les contrôleurs et la sécurité ;
+- 7 scénarios Karate (`src/test/resources/.../karate/cases.feature`) qui appellent les mêmes endpoints comme un client HTTP boîte noire, sur un contexte Spring démarré, avec la base de données simulée.
+
+Le job CI `docker-e2e-smoke` contrôle ensuite des réponses clés sur la vraie pile (application et MongoDB, sans simulation).
 
 ## Stack
 
-Java 17, Spring Boot 3, Spring Security, Spring Data MongoDB, JUnit 5,
-Mockito, AssertJ, Karate, Docker.
+Java 17, Spring Boot 3, Spring Security, Spring Data MongoDB, JUnit 5, Mockito, AssertJ, Karate, Docker.
 
-## Running it
+## Lancer l'application
 
 ```bash
 docker compose up --build
 ```
 
-Starts the API on `:8080` with a real MongoDB. Two demo users are seeded in
-`SecurityConfig` for manual testing (Basic auth): `paralegal` / `demo`
-(read-only) and `lawyer` / `demo` (read + write).
+L'API démarre sur le port `8080` avec une vraie base MongoDB. Deux utilisateurs de démonstration sont définis dans `SecurityConfig` pour les tests manuels (authentification Basic) : `paralegal` / `demo` (lecture seule) et `lawyer` / `demo` (lecture et écriture).
 
 ```bash
 curl -u lawyer:demo http://localhost:8080/cases/REF-001
 ```
 
-The database starts empty (no case is seeded), so the expected answer is a
-clean JSON 404 from the error handler, not a stack trace:
+La base démarre vide (aucun dossier n'est préchargé). La réponse attendue est donc un 404 JSON propre renvoyé par le gestionnaire d'erreurs, pas une trace d'exécution :
 
 ```json
 {"errorId":"NOT_FOUND","message":"No case found for reference REF-001"}
 ```
 
-To get a case back instead, add one to the database first:
+Pour obtenir un dossier, ajoutez-en d'abord un dans la base :
 
 ```bash
 docker compose exec mongo mongosh legal_compliance --eval 'db.cases.insertOne({reference: "REF-001", subject: "Lease dispute", status: "OPEN"})'
 ```
 
-## Running the tests
+## Lancer les tests
 
 ```bash
 mvn test
 ```
 
-Requires **JDK 17** specifically to run - Karate's embedded GraalJS engine
-isn't yet compatible with newer JDKs (`sun.misc.Unsafe.ensureClassInitialized`
-was removed). If `mvn test` fails with a `GraalVM`/`Unsafe` error, point
-`JAVA_HOME` at a JDK 17 install and retry. CI is pinned to JDK 17 for the same
-reason.
+Les tests exigent **JDK 17** : le moteur GraalJS embarqué par Karate n'est pas encore compatible avec les JDK plus récents (`sun.misc.Unsafe.ensureClassInitialized` a été retiré). Si `mvn test` échoue avec une erreur `GraalVM` ou `Unsafe`, faites pointer `JAVA_HOME` vers un JDK 17 et relancez. La CI est fixée sur JDK 17 pour la même raison.
 
-## Notes on the domain
+## Notes sur le domaine
 
-The retention periods follow Belgian rules for a lawyer's case file: 5 years
-after the end of the mission, 10 years when anti-money-laundering obligations
-apply. For simplicity, the end of the mission and the end of the business
-relationship are treated as the same date. Cases and users are invented, and
-nothing here is legal advice.
+Les dates de conservation suivent deux règles du droit belge :
+
+- L'avocat est déchargé de sa responsabilité professionnelle et de la conservation des pièces cinq ans après l'achèvement de sa mission (art. 2276bis de l'ancien Code civil), sauf s'il a été constitué expressément dépositaire de pièces déterminées.
+- Lorsque les obligations anti-blanchiment s'appliquent, les données d'identification sont conservées dix ans à dater de la fin de la relation d'affaires ou de l'opération occasionnelle, et les pièces relatives aux opérations dix ans à dater de leur exécution (art. 60 de la loi du 18 septembre 2017).
+
+Pour simplifier, tous ces points de départ sont assimilés à la fin de la mission. Les dossiers et les utilisateurs sont fictifs, et rien ici ne constitue un conseil juridique.
